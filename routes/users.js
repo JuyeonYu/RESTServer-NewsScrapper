@@ -7,3 +7,8 @@ router.get('/', function(req, res, next) {
 });
 
 module.exports = router;
+
+
+var mysql_dbc = require('../db/db_con')();
+var connection = mysql_dbc.init();
+mysql_dbc.test_open(connection);
