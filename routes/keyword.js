@@ -73,8 +73,6 @@ router.put('/:keyword/user/:id', function(req, res, next) {
         else console.log(rows)
         res.send(rows);
 
-        // var scheduleID = id + '|' + keyword;
-
         if (alarmOn) {
             setSchedule(alarmTime, id, keyword);
         } else {
@@ -91,8 +89,8 @@ router.delete('/:keyword/user/:id', function(req, res, next) {
     var sql = 'delete from keyword where keyword = ? and user_id = ?';
 
     connection.query(sql, params, function (err, rows, fields) {
-            if(err) console.log('query is not excuted. select fail...\n' + err);
-            res.send(rows[0]);
+        if(err) console.log('query is not excuted. select fail...\n' + err);
+        res.send(rows[0]);
     });
 });
 
@@ -108,11 +106,36 @@ function setSchedule(alarmTime, id, keyword) {
     rule.hour = hour;
     rule.minute = minute;
     // rule.second = minute; // for test
-    var j = schedule.scheduleJob(scheduleID, rule, function () {
-        hasNews(keyword, alarm_time, function(hasNews){
-            console.log(result)
-            if (hasNews) push(keyword);
+    var j = schedule.scheduleJob(scheduleID, rule, function() {
+        hasNews(keyword, alarmTime, function(hasNews){
+            if (hasNews) {
+                getUnreadCount(id, function(unreadCount){
+                    getPushToken(id, function(token){
+                        push(token, keyword, unreadCount);
+                    });
+                });
+            }
         })
+    });
+}
+
+function getUnreadCount(id, callback) {
+    var sql = 'SELECT * from unread_count where user_id = ?';
+    var param = id;
+
+    connection.query(sql, param, function (err, rows, fields) {
+        if(err) console.log('query is not excuted. select fail...\n' + err);
+        callback(rows[0]['unread_count']);
+    });
+}
+
+function getPushToken(id, callback) {
+    var sql = 'SELECT * from user where user_id = ?';
+    var param = id;
+
+    connection.query(sql, param, function (err, rows, fields) {
+        if(err) console.log('query is not excuted. select fail...\n' + err);
+        callback(rows[0]['push_token']);
     });
 }
 
@@ -124,13 +147,13 @@ function initSchedule() {
 
         for (var i = 0; i < rows.length; i++) {
             if (rows[i]['alarm_on']) {
-                setSchedule(rows[i]['alarm_time'], rows[i]['user_id'] + '|' + rows[i]['keyword'], rows[i]['keyword'])
+                setSchedule(rows[i]['alarm_time'], rows[i]['user_id'], rows[i]['keyword'])
             }
         }
     });
 }
 
-function push(keyword) {
+function push(token, keyword, count) {
     var options = {
         token: {
             key: "./AuthKey_8NV9UH7AJ2.p8",
@@ -146,7 +169,7 @@ function push(keyword) {
     var note = new apn.Notification();
     // expiry : 전송이 실패하면 지정한 시간까지 다시 전송을 시도함
     note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
-    note.badge = 1;
+    note.badge = count;
     // sound => 미리 넣고 패키징해야함
     note.sound = "ping.aif",
     // 메시지
@@ -159,7 +182,7 @@ function push(keyword) {
         custom: keyword
     };
     
-    apnProvider.send(note, deviceToken).then( (result) => {
+    apnProvider.send(note, token).then( (result) => {
         console.log(result.sent);
         console.log(result.failed);
         return;
