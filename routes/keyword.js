@@ -11,6 +11,7 @@ router.use(bodyParser.json());
 router.use(bodyParser.urlencoded({ extended: true }));
 
 var apn = require('apn');
+var schedule = require('node-schedule');
 
 
 /* GET users listing. */
@@ -18,8 +19,6 @@ router.get('/:keyword/user/:id', function(req, res, next) {
     var keyword = req.params.keyword;
     var id = req.params.id;
     var param = [keyword, id];
-
-    push(keyword);
 
     var sql = 'SELECT * from keyword where keyword = ? and user_id = ?';
 
@@ -51,41 +50,45 @@ router.post('/:keyword', function(req, res, next) {
 
     var latestArticleTime = req.body.latestArticleTime;
     var alarmTime = req.body.alarmTime;
+    var alarmOn = req.body.alarmOn;
     
     var params;
-
     var sql;
-
-    if (latestArticleTime && alarmTime) {
-        console.log('error: latestArticleTime && alarmTime')
-        return;
-    }
     
     if (latestArticleTime) {
-        sql = 'update keyword set latest_article_time = ? where user_id = ?';
+        sql = 'update keyword set latest_article_time = ? where user_id = ? and keyword = ?';
         params = [latestArticleTime, id, keyword];
     }
 
     if (alarmTime) {
-        sql = 'update keyword set alarm_time = ? where user_id = ?';
+        sql = 'update keyword set alarm_time = ? where user_id = ? and keyword = ?';
         params = [alarmTime, id, keyword];
     }
 
-    console.log(sql);
+    if (alarmOn != null) {
+        sql = 'update keyword set alarm_on = ? where user_id = ? and keyword = ?';
+        params = [alarmOn, id, keyword];
+    }
     
     connection.query(sql, params, function (err, rows, fields) {
-          if(err) console.log('query is not excuted. select fail...\n' + err);
-          else console.log(rows)
-          res.send(rows);
-      });
-  });
+
+        if(err) console.log('query is not excuted. select fail...\n' + err);
+        else console.log(rows)
+        res.send(rows);
+
+        if (alarmOn != null) {
+            var j = schedule.scheduleJob('10 * * * * *', function(){
+                push(keyword);
+            });
+        }
+    });
+});
   
   router.delete('/:keyword/user/:id', function(req, res, next) {
     var id = req.params.id;
     var keyword = req.params.keyword;
     var params = [keyword, id];
 
-    console.log(keyword + ' / ' + id)
     var sql = 'delete from keyword where keyword = ? and user_id = ?';
   
     connection.query(sql, params, function (err, rows, fields) {
