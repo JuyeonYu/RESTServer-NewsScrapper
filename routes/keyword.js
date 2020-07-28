@@ -1,17 +1,15 @@
 var express = require('express');
 var router = express.Router();
-
 var mysql_dbc = require('../db/db_con')();
 var connection = mysql_dbc.init();
-
 var urlencode = require('urlencode');
-
+var apn = require('apn');
+var schedule = require('node-schedule');
+var request = require('request');
+var moment = require('moment');
 var bodyParser = require('body-parser');
 router.use(bodyParser.json());
 router.use(bodyParser.urlencoded({ extended: true }));
-
-var apn = require('apn');
-var schedule = require('node-schedule');
 
 initSchedule();
 
@@ -75,12 +73,12 @@ router.put('/:keyword/user/:id', function(req, res, next) {
         else console.log(rows)
         res.send(rows);
 
-        var scheduleID = id + '|' + keyword;
+        // var scheduleID = id + '|' + keyword;
 
         if (alarmOn) {
-            setSchedule(alarmTime, scheduleID, keyword);
+            setSchedule(alarmTime, id, keyword);
         } else {
-            schedule.cancelJob(scheduleID);
+            schedule.cancelJob(id + '|' + keyword);
         }
     });
 });
@@ -101,7 +99,8 @@ router.delete('/:keyword/user/:id', function(req, res, next) {
 module.exports = router;
 
 
-function setSchedule(alarmTime, scheduleID, keyword) {
+function setSchedule(alarmTime, id, keyword) {
+    let scheduleID = id + '|' + keyword;
     var hour = Math.floor(alarmTime / 100);
     var minute = ((alarmTime / 100) % 1) * 100;
 
@@ -110,7 +109,10 @@ function setSchedule(alarmTime, scheduleID, keyword) {
     rule.minute = minute;
     // rule.second = minute; // for test
     var j = schedule.scheduleJob(scheduleID, rule, function () {
-        push(keyword);
+        hasNews(keyword, alarm_time, function(hasNews){
+            console.log(result)
+            if (hasNews) push(keyword);
+        })
     });
 }
 
@@ -121,11 +123,7 @@ function initSchedule() {
         if(err) console.log('query is not excuted. select fail...\n' + err);
 
         for (var i = 0; i < rows.length; i++) {
-            console.log(rows[i]['alarm_time']);
             if (rows[i]['alarm_on']) {
-                console.log('alarm_time: ' + rows[i]['alarm_time']);
-                console.log('user_id: ' + rows[i]['user_id']);
-                console.log('keyword: ' + rows[i]['keyword']);
                 setSchedule(rows[i]['alarm_time'], rows[i]['user_id'] + '|' + rows[i]['keyword'], rows[i]['keyword'])
             }
         }
@@ -165,5 +163,31 @@ function push(keyword) {
         console.log(result.sent);
         console.log(result.failed);
         return;
+    });
+}
+
+function latestNewsTime(keyword, articleTime, callback) {
+    let header = {
+        'X-Naver-Client-Id':'zmO4KBQdHToxqh6FfuDv', 
+        'X-Naver-Client-Secret':'88YmMc4b62'
+    };
+    keyword = urlencode(keyword);
+    
+    request({
+        headers: header,
+        uri: 'https://openapi.naver.com/v1/search/news.json?query='+keyword + '&display=1',
+        method: 'GET'
+      }, function (err, res, body) {
+          const result = JSON.parse(body)
+          let pubDate = moment(result.items[0].pubDate, "ddd, DD MMM YYYY HH:mm:ss z");
+          console.log('pd: ' + pubDate.format());
+          callback(pubDate.format())
+    });
+}
+
+function hasNews(keyword, articleTime, callback) {
+    latestNewsTime(keyword, articleTime, function(result) {
+        console.log('result: '+ result);
+        callback(moment(result).isAfter(articleTime));
     });
 }
