@@ -13,6 +13,7 @@ router.use(bodyParser.urlencoded({ extended: true }));
 var apn = require('apn');
 var schedule = require('node-schedule');
 
+initSchedule();
 
 /* GET users listing. */
 router.get('/:keyword/user/:id', function(req, res, next) {
@@ -38,13 +39,13 @@ router.post('/:keyword', function(req, res, next) {
     var sql = 'insert into keyword(keyword, latest_article_time, alarm_time, user_id) value(?,?,?,?)';
     
     connection.query(sql, params, function (err, rows, fields) {
-          if(err) console.log('query is not excuted. select fail...\n' + err);
-          else console.log(rows)
-          res.send(rows);
-      });
-  });
+        if(err) console.log('query is not excuted. select fail...\n' + err);
+        else console.log(rows)
+        res.send(rows);
+    });
+});
   
-  router.put('/:keyword/user/:id', function(req, res, next) {
+router.put('/:keyword/user/:id', function(req, res, next) {
     var id = req.params.id;
     var keyword = req.params.keyword;
 
@@ -53,7 +54,7 @@ router.post('/:keyword', function(req, res, next) {
     var alarmOn = req.body.alarmOn;
 
     console.log(alarmOn, alarmTime);
-    
+
     var params;
     var sql;
 
@@ -77,51 +78,57 @@ router.post('/:keyword', function(req, res, next) {
         var scheduleID = id + '|' + keyword;
 
         if (alarmOn) {
-            var hour = Math.floor(alarmTime / 100);
-            var minute = ((alarmTime / 100) % 1) * 100;
-            
-            var rule = new schedule.RecurrenceRule();
-            // rule.hour = hour;
-            // rule.minute = minute;
-            rule.second = minute;
-
-            var j = schedule.scheduleJob(scheduleID, rule, function(){
-                push(keyword);
-            });
+            setSchedule(alarmTime, scheduleID, keyword);
         } else {
-            console.log('cancel job: ' + scheduleID);
-            // var cancelJob = schedule.scheduledJobs[scheduleID];
-            // cancelJob.cancel();
-
             schedule.cancelJob(scheduleID);
         }
     });
 });
   
-  router.delete('/:keyword/user/:id', function(req, res, next) {
+router.delete('/:keyword/user/:id', function(req, res, next) {
     var id = req.params.id;
     var keyword = req.params.keyword;
     var params = [keyword, id];
 
     var sql = 'delete from keyword where keyword = ? and user_id = ?';
-  
+
     connection.query(sql, params, function (err, rows, fields) {
-          if(err) console.log('query is not excuted. select fail...\n' + err);
-          res.send(rows[0]);
-      });
-  });
+            if(err) console.log('query is not excuted. select fail...\n' + err);
+            res.send(rows[0]);
+    });
+});
 
 module.exports = router;
 
-function setSchedule(keyword, id) {
-    console.log(2)
-    var params = [keyword, id];
-    var sql = 'SELECT * from keyword where keyword = ? and user_id = ?';
 
-    connection.query(sql, params, function (err, rows, fields) {
-        console.log(3)
+function setSchedule(alarmTime, scheduleID, keyword) {
+    var hour = Math.floor(alarmTime / 100);
+    var minute = ((alarmTime / 100) % 1) * 100;
+
+    var rule = new schedule.RecurrenceRule();
+    rule.hour = hour;
+    rule.minute = minute;
+    // rule.second = minute; // for test
+    var j = schedule.scheduleJob(scheduleID, rule, function () {
+        push(keyword);
+    });
+}
+
+function initSchedule() {
+    var sql = 'SELECT * from keyword';
+
+    connection.query(sql, function (err, rows, fields) {
         if(err) console.log('query is not excuted. select fail...\n' + err);
-        res.send(rows[0]);
+
+        for (var i = 0; i < rows.length; i++) {
+            console.log(rows[i]['alarm_time']);
+            if (rows[i]['alarm_on']) {
+                console.log('alarm_time: ' + rows[i]['alarm_time']);
+                console.log('user_id: ' + rows[i]['user_id']);
+                console.log('keyword: ' + rows[i]['keyword']);
+                setSchedule(rows[i]['alarm_time'], rows[i]['user_id'] + '|' + rows[i]['keyword'], rows[i]['keyword'])
+            }
+        }
     });
 }
 
@@ -157,6 +164,6 @@ function push(keyword) {
     apnProvider.send(note, deviceToken).then( (result) => {
         console.log(result.sent);
         console.log(result.failed);
-    return;
+        return;
     });
 }
