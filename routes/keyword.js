@@ -18,11 +18,11 @@ var schedule = require('node-schedule');
 router.get('/:keyword/user/:id', function(req, res, next) {
     var keyword = req.params.keyword;
     var id = req.params.id;
-    var param = [keyword, id];
+    var params = [keyword, id];
 
     var sql = 'SELECT * from keyword where keyword = ? and user_id = ?';
 
-    connection.query(sql, param, function (err, rows, fields) {
+    connection.query(sql, params, function (err, rows, fields) {
         if(err) console.log('query is not excuted. select fail...\n' + err);
         res.send(rows[0]);
     });
@@ -51,35 +51,49 @@ router.post('/:keyword', function(req, res, next) {
     var latestArticleTime = req.body.latestArticleTime;
     var alarmTime = req.body.alarmTime;
     var alarmOn = req.body.alarmOn;
+
+    console.log(alarmOn, alarmTime);
     
     var params;
     var sql;
-    
+
     if (latestArticleTime) {
         sql = 'update keyword set latest_article_time = ? where user_id = ? and keyword = ?';
         params = [latestArticleTime, id, keyword];
     }
 
-    if (alarmTime) {
-        sql = 'update keyword set alarm_time = ? where user_id = ? and keyword = ?';
-        params = [alarmTime, id, keyword];
+    if (alarmTime && alarmOn != null) {
+        sql = 'update keyword set alarm_time = ?, alarm_on = ? where user_id = ? and keyword = ?';
+        params = [alarmTime, alarmOn, id, keyword];
     }
 
-    if (alarmOn != null) {
-        sql = 'update keyword set alarm_on = ? where user_id = ? and keyword = ?';
-        params = [alarmOn, id, keyword];
-    }
-    
+    console.log(sql);
+
     connection.query(sql, params, function (err, rows, fields) {
-
         if(err) console.log('query is not excuted. select fail...\n' + err);
         else console.log(rows)
         res.send(rows);
 
-        if (alarmOn != null) {
-            var j = schedule.scheduleJob('10 * * * * *', function(){
+        var scheduleID = id + '|' + keyword;
+
+        if (alarmOn) {
+            var hour = Math.floor(alarmTime / 100);
+            var minute = ((alarmTime / 100) % 1) * 100;
+            
+            var rule = new schedule.RecurrenceRule();
+            // rule.hour = hour;
+            // rule.minute = minute;
+            rule.second = minute;
+
+            var j = schedule.scheduleJob(scheduleID, rule, function(){
                 push(keyword);
             });
+        } else {
+            console.log('cancel job: ' + scheduleID);
+            // var cancelJob = schedule.scheduledJobs[scheduleID];
+            // cancelJob.cancel();
+
+            schedule.cancelJob(scheduleID);
         }
     });
 });
@@ -98,6 +112,18 @@ router.post('/:keyword', function(req, res, next) {
   });
 
 module.exports = router;
+
+function setSchedule(keyword, id) {
+    console.log(2)
+    var params = [keyword, id];
+    var sql = 'SELECT * from keyword where keyword = ? and user_id = ?';
+
+    connection.query(sql, params, function (err, rows, fields) {
+        console.log(3)
+        if(err) console.log('query is not excuted. select fail...\n' + err);
+        res.send(rows[0]);
+    });
+}
 
 function push(keyword) {
     var options = {
