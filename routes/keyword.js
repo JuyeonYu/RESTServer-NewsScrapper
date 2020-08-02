@@ -64,10 +64,10 @@ router.put('/:keyword', function(req, res, next) {
     });
 });
   
-router.delete('/:keyword/user/:id', function(req, res, next) {
-    var id = req.params.id;
+router.delete('/:keyword/', function(req, res, next) {
+    var user_id = req.body.user_id;
     var keyword = req.params.keyword;
-    var params = [keyword, id];
+    var params = [keyword, user_id];
 
     var sql = 'delete from keyword where keyword = ? and user_id = ?';
 
@@ -103,7 +103,7 @@ function setSchedule(alarmTime, id, keyword) {
 }
 
 function getUnreadCount(id, callback) {
-    var sql = 'SELECT * from unread_count where user_id = ?';
+    var sql = 'SELECT * from user where user_id = ?';
     var param = id;
 
     connection.query(sql, param, function (err, rows, fields) {
