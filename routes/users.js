@@ -22,9 +22,9 @@ router.get('/:id', function(req, res, next) {
 router.post('/', function(req, res, next) {
   var userid = req.body.userid;
   var token = req.body.token;
-  var params = [userid, token]
+  var params = [userid, token, token];
 
-  var sql = 'insert into user(user_id, push_token) value(?,?)';
+  var sql = 'insert into user(user_id, push_token) value(?,?) ON DUPLICATE KEY UPDATE push_token=?';
   
   connection.query(sql, params, function (err, rows, fields) {
         if(err) console.log('query is not excuted. select fail...\n' + err);
