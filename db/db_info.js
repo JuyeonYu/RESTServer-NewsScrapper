@@ -1,7 +1,7 @@
 module.exports = (function () {
     return {
       local: { // localhost
-        host: '182.213.68.34',
+        host: '192.168.219.100',
         port: '3306',
         user: 'johnny',
         password: 'qwas8800',
@@ -11,7 +11,7 @@ module.exports = (function () {
         host: '',
         port: '',
         user: '',
-        password: '!',
+        password: '',
         database: ''
       },
       dev: { // dev server db info

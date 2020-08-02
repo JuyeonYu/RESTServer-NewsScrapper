@@ -29,12 +29,9 @@ router.get('/:keyword/user/:id', function(req, res, next) {
 
 router.post('/:keyword', function(req, res, next) {
     var keyword = urlencode.decode(req.params.keyword);
-    console.log('keyword: '+ keyword)
-    var latest_article_time = req.body.latest_article_time;
-    var alarm_time = req.body.alarm_time;
     var user_id = req.body.user_id;
-    var params = [keyword, latest_article_time, alarm_time, user_id]
-    var sql = 'insert into keyword(keyword, latest_article_time, alarm_time, user_id) value(?,?,?,?)';
+    var params = [keyword,  user_id]
+    var sql = 'insert into keyword(keyword, user_id) value(?,?)';
     
     connection.query(sql, params, function (err, rows, fields) {
         if(err) console.log('query is not excuted. select fail...\n' + err);
@@ -43,30 +40,16 @@ router.post('/:keyword', function(req, res, next) {
     });
 });
   
-router.put('/:keyword/user/:id', function(req, res, next) {
-    var id = req.params.id;
+router.put('/:keyword', function(req, res, next) {
     var keyword = req.params.keyword;
 
-    var latestArticleTime = req.body.latestArticleTime;
+    var user_id = req.body.user_id;
+    var latestNewsTime = req.body.latestNewsTime;
     var alarmTime = req.body.alarmTime;
     var alarmOn = req.body.alarmOn;
 
-    console.log(alarmOn, alarmTime);
-
-    var params;
-    var sql;
-
-    if (latestArticleTime) {
-        sql = 'update keyword set latest_article_time = ? where user_id = ? and keyword = ?';
-        params = [latestArticleTime, id, keyword];
-    }
-
-    if (alarmTime && alarmOn != null) {
-        sql = 'update keyword set alarm_time = ?, alarm_on = ? where user_id = ? and keyword = ?';
-        params = [alarmTime, alarmOn, id, keyword];
-    }
-
-    console.log(sql);
+    var sql = 'update keyword set latest_news_time = ?, alarm_time = ?, alarm_on = ? where user_id = ? and keyword = ?';
+    var params = [latestNewsTime, alarmTime, alarmOn, user_id, keyword];
 
     connection.query(sql, params, function (err, rows, fields) {
         if(err) console.log('query is not excuted. select fail...\n' + err);
