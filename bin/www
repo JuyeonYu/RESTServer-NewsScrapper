@@ -5,7 +5,7 @@
  */
 
 var app = require('../app');
-var debug = require('debug')('restserver-newsscrapper:server');
+var debug = require('debug')('restapi-scrapper:server');
 var http = require('http');
 
 /**
